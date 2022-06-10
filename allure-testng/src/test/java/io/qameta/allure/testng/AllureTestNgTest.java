@@ -41,6 +41,8 @@ import io.qameta.allure.testfilter.TestPlanV1_0;
 import io.qameta.allure.testng.samples.PriorityTests;
 import io.qameta.allure.testng.samples.TestsWithIdForFilter;
 import org.assertj.core.api.Condition;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.api.InstanceOfAssertFactory;
 import org.assertj.core.groups.Tuple;
 import org.testng.ITestNGListener;
 import org.testng.TestNG;
@@ -701,6 +703,24 @@ public class AllureTestNgTest {
                         tuple("io.qameta.allure.testng.samples.OwnerClassTest.testWithoutOwner", "[eroshenkoam]"),
                         tuple("io.qameta.allure.testng.samples.OwnerClassTest.testWithoutOwner", "[eroshenkoam]")
                 );
+    }
+
+    @AllureFeatures.Attachments
+    @Test(description = "Should add attachments to tests")
+    public void attachmentOnFailedConfigurationTest() {
+        final AllureResults results = runTestNgSuites("suites/attachment-on-failed-config.xml");
+        List<TestResult> testResults = results.getTestResults();
+        Optional<TestResult> testResult = testResults.stream()
+                .filter(result -> result.getFullName()
+                        .equals("io.qameta.allure.testng.samples.AttachmentsOnFailedConfigurationTest.setUp"))
+                .findFirst();
+        assertThat(testResult).isPresent()
+                .get()
+                .extracting("attachments", InstanceOfAssertFactories.list(Attachment.class))
+                .hasSize(1)
+                .element(0)
+                .extracting(Attachment::getName)
+                .isEqualTo("String attachment");
     }
 
     @AllureFeatures.Attachments
