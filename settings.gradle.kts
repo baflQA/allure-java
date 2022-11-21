@@ -46,7 +46,7 @@ pluginManagement {
         gradlePluginPortal()
     }
     plugins {
-        id("com.diffplug.spotless") version "6.9.1"
+        id("com.diffplug.spotless") version "6.11.0"
         id("com.github.johnrengelman.shadow") version "7.1.2"
         id("com.gradle.enterprise") version "3.11.2"
         id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
@@ -56,7 +56,7 @@ pluginManagement {
         id("io.qameta.allure-report") version "2.11.2"
         id("io.spring.dependency-management") version "1.0.11.RELEASE"
         id("ru.vyarus.quality") version "4.7.0"
-        id("com.google.protobuf") version "0.8.19"
+        id("com.google.protobuf") version "0.9.1"
         kotlin("jvm") version "1.7.10"
     }
 }
