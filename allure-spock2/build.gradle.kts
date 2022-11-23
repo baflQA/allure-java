@@ -4,7 +4,7 @@ plugins {
     groovy
 }
 
-val spockFrameworkVersion = "2.3-groovy-3.0"
+val spockFrameworkVersion = "2.3-groovy-4.0"
 val groovyVersion = "3.0.13"
 
 dependencies {

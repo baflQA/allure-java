@@ -2,7 +2,7 @@ description = "Allure Spock Framework Integration"
 
 apply(plugin = "groovy")
 
-val spockFrameworkVersion = "1.3-groovy-2.5"
+val spockFrameworkVersion = "2.3-groovy-4.0"
 val groovyVersion = "2.5.19"
 
 dependencies {
