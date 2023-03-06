@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2020 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,19 +13,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package io.qameta.allure.cucumberjvm.samples;
+package io.qameta.allure.junit5.features;
 
-import cucumber.api.DataTable;
-import cucumber.api.java.en.Given;
+import io.qameta.allure.Allure;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author charlie (Dmitry Baev).
  */
-@SuppressWarnings("unused")
-public class DatatableFeatureSteps {
+public class BeforeEachFixtureBrokenSupport {
 
-    @Given("^users are:$")
-    public void usersAre(DataTable table) {
+    @BeforeEach
+    void setUp() {
+        Allure.step("setUp 1");
+        Allure.step("setUp 2");
+        throw new RuntimeException("ta da");
     }
 
+    @Test
+    void test1() {
+        Allure.step("test1 1");
+        Allure.step("test1 2");
+    }
 }

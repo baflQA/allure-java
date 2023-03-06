@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2020 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -13,31 +13,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package io.qameta.allure.cucumberjvm.samples;
+package io.qameta.allure.junit5.features;
 
-import cucumber.api.java.en.Given;
-import cucumber.api.java.en.Then;
-import cucumber.api.java.en.When;
+import io.qameta.allure.Allure;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.fail;
 
 /**
- * @author charlie (Dmitry Baev).
+ * @author prafair (Pavel Novikov).
  */
-public class BackgroundFeatureSteps {
+public class BeforeAllFixtureFailureSupport {
 
-    @Given("^cat is sad$")
-    public void catIsSad() {
+    @BeforeAll
+    static void setUpAll() {
+        Allure.step("setUpAll 1");
+        Allure.step("setUpAll 2");
+        fail("Make the setUpAll failed");
     }
 
-    @Given("^cat is murmur$")
-    public void catIsMurMur() {
+    @Test
+    void test1() {
+        Allure.step("test1 1");
+        Allure.step("test1 2");
     }
-
-    @When("^pet the cat$")
-    public void petTheCat() {
-    }
-
-    @Then("^cat is happy$")
-    public void catIsHappy() {
-    }
-
 }
