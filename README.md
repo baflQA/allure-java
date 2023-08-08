@@ -15,7 +15,7 @@
 
 The repository contains new versions of adaptors for JVM-based test frameworks.
 
-All the artifacts are deployed to `https://dl.bintray.com/qameta/maven`.
+All the artifacts are deployed to `https://repo1.maven.org/maven2/io/qameta/allure/`.
 
 ## TestNG
 
@@ -174,6 +174,25 @@ Usage example:
 ```
 .addInterceptorFirst(new AllureHttpClientRequest())
 .addInterceptorLast(new AllureHttpClientResponse());
+```
+
+## Http client 5
+Interceptors for Apache [httpclient5](https://hc.apache.org/httpcomponents-client-5.2.x/index.html). 
+Additional info can be found in module `allure-httpclient5`
+
+```xml
+<dependency>
+   <groupId>io.qameta.allure</groupId>
+   <artifactId>allure-httpclient5</artifactId>
+   <version>$LATEST_VERSION</version>
+</dependency>
+```
+
+Usage example:
+```java
+final HttpClientBuilder builder = HttpClientBuilder.create()
+        .addRequestInterceptorFirst(new AllureHttpClient5Request("your-request-template-attachment.ftl"))
+        .addResponseInterceptorLast(new AllureHttpClient5Response("your-response-template-attachment.ftl"));
 ```
 
 ## JAX-RS Filter

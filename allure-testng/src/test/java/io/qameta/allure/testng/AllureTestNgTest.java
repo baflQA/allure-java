@@ -62,7 +62,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static io.qameta.allure.testng.config.AllureTestNgConfig.ALLURE_TESTNG_HIDE_DISABLED_TESTS;
 import static io.qameta.allure.util.ResultsUtils.ALLURE_SEPARATE_LINES_SYSPROP;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
@@ -109,6 +108,28 @@ public class AllureTestNgTest {
                 new Object[]{XmlSuite.ParallelMode.TESTS, 2},
                 new Object[]{XmlSuite.ParallelMode.TESTS, 1},
         };
+    }
+
+    @AllureFeatures.Fixtures
+    @Issue("356")
+    @Test
+    public void shouldSetHideConfigFailProperty() {
+        AllureTestNgConfig allureTestNgConfig = AllureTestNgConfig.loadConfigProperties();
+        assertThat(allureTestNgConfig.isHideConfigurationFailures()).isFalse();
+        allureTestNgConfig.setHideConfigurationFailures(true);
+        assertThat(allureTestNgConfig.isHideConfigurationFailures()).isTrue();
+    }
+
+    @AllureFeatures.Fixtures
+    @Issue("356")
+    @Test
+    public void shouldNotDisplayConfigurationFailsAsTests() {
+        AllureTestNgConfig allureTestNgConfig = AllureTestNgConfig.loadConfigProperties();
+        allureTestNgConfig.setHideConfigurationFailures(true);
+        final AllureResults results = runTestNgSuites(allureTestNgConfig, "suites/gh-135.xml");
+        assertThat(results.getTestResults())
+                .extracting(TestResult::getName, TestResult::getStatus)
+                .containsOnly(tuple("someTest", Status.SKIPPED));
     }
 
     @Test
@@ -1103,12 +1124,12 @@ public class AllureTestNgTest {
     @Issue("369")
     @Test
     public void shouldNotDisplayDisabledTests() {
-        System.setProperty(ALLURE_TESTNG_HIDE_DISABLED_TESTS, "true");
-        final AllureResults results = runTestNgSuites("suites/gh-369.xml");
+        AllureTestNgConfig allureTestNgConfig = AllureTestNgConfig.loadConfigProperties();
+        allureTestNgConfig.setHideDisabledTests(true);
+        final AllureResults results = runTestNgSuites(allureTestNgConfig,"suites/gh-369.xml");
         assertThat(results.getTestResults())
                 .extracting(TestResult::getName, TestResult::getStatus)
                 .containsOnly(tuple("enabled", Status.PASSED));
-        System.setProperty(ALLURE_TESTNG_HIDE_DISABLED_TESTS, "false");
     }
 
     @SuppressWarnings("unchecked")
@@ -1184,12 +1205,6 @@ public class AllureTestNgTest {
                 );
     }
 
-    private AllureResults runTestNgSuites(final String... suites) {
-        final Consumer<TestNG> emptyConfigurer = testNg -> {
-        };
-        return runTestNgSuites(emptyConfigurer, suites);
-    }
-
     @SuppressWarnings("unchecked")
     @AllureFeatures.Parameters
     @Issue("141")
@@ -1245,8 +1260,26 @@ public class AllureTestNgTest {
                 .containsExactly("zTest", "yTest", "xTest", "wTest", "vTest", "vTest");
     }
 
+    private AllureResults runTestNgSuites(final String... suites) {
+        final Consumer<TestNG> emptyConfigurer = testNg -> {
+        };
+        return runTestNgSuites(emptyConfigurer, suites);
+    }
+
+    private AllureResults runTestNgSuites(AllureTestNgConfig config, final String... suites) {
+        final Consumer<TestNG> emptyConfigurer = testNg -> {
+        };
+        return runTestNgSuites(emptyConfigurer, config, suites);
+    }
+
+    private AllureResults runTestNgSuites(final Consumer<TestNG> configurer,
+                                          final String... suites) {;
+        return runTestNgSuites(configurer, AllureTestNgConfig.loadConfigProperties(), suites);
+    }
+
     @Step("Run testng suites {suites}")
     private AllureResults runTestNgSuites(final Consumer<TestNG> configurer,
+                                          final AllureTestNgConfig config,
                                           final String... suites) {
         final ClassLoader classLoader = getClass().getClassLoader();
         List<String> suiteFiles = Arrays.stream(suites)
@@ -1261,7 +1294,9 @@ public class AllureTestNgTest {
 
         final AllureResultsWriterStub results = new AllureResultsWriterStub();
         final AllureLifecycle lifecycle = new AllureLifecycle(results);
-        final AllureTestNg adapter = new AllureTestNg(lifecycle);
+        final AllureTestNg adapter = new AllureTestNg(lifecycle,
+            new AllureTestNgTestFilter(),
+            config);
         final TestNG testNg = new TestNG(false);
         testNg.addListener((ITestNGListener) adapter);
         testNg.setTestSuites(suiteFiles);
