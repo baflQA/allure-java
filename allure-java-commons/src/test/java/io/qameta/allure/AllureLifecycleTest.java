@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ import io.qameta.allure.model.FixtureResult;
 import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.TestResult;
 import io.qameta.allure.model.TestResultContainer;
-import io.qameta.allure.test.AllureResultsWriterStub;
+import io.qameta.allure.test.AllureResults;
+import io.qameta.allure.test.RunUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -34,7 +35,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -46,7 +47,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static io.qameta.allure.Allure.addStreamAttachmentAsync;
-import static io.qameta.allure.Allure.setLifecycle;
 import static io.qameta.allure.test.TestData.randomId;
 import static io.qameta.allure.test.TestData.randomName;
 import static io.qameta.allure.test.TestData.randomString;
@@ -69,6 +69,23 @@ class AllureLifecycleTest {
     public void setUp() {
         writer = Mockito.mock(AllureResultsWriter.class);
         lifecycle = new AllureLifecycle(writer);
+    }
+
+    @Test
+    void shouldReturnCurrentTestCaseId() {
+        final String uuid = randomId();
+        final String name = randomName();
+        final TestResult result = new TestResult().setUuid(uuid).setName(name);
+        lifecycle.scheduleTestCase(result);
+        lifecycle.startTestCase(uuid);
+
+        final String stepUuid = randomId();
+        lifecycle.startStep(uuid, stepUuid, new StepResult().setName(randomName()));
+
+        final Optional<String> currentTestCase = lifecycle.getCurrentTestCase();
+        assertThat(currentTestCase)
+                .isPresent()
+                .hasValue(uuid);
     }
 
     @Test
@@ -296,36 +313,24 @@ class AllureLifecycleTest {
                 .containsExactly(firstStepName, secondStepName);
     }
 
-    @SuppressWarnings("OptionalGetWithoutIsPresent")
     @Test
     void shouldAttachAsync() {
         final List<CompletableFuture<InputStream>> features = new CopyOnWriteArrayList<>();
-        final AllureResultsWriterStub writer = new AllureResultsWriterStub();
-
-        final AllureLifecycle lifecycle = new AllureLifecycle(writer);
-        setLifecycle(lifecycle);
-
-        final String uuid = UUID.randomUUID().toString();
-        final TestResult result = new TestResult().setUuid(uuid);
-
-        lifecycle.scheduleTestCase(result);
-        lifecycle.startTestCase(uuid);
-
-        final String attachment1Content = randomString(100);
-        final String attachment2Content = randomString(100);
 
         final String attachment1Name = randomName();
         final String attachment2Name = randomName();
 
-        features.add(addStreamAttachmentAsync(
-                attachment1Name, "video/mp4", getStreamWithTimeout(2, attachment1Content)));
-        features.add(addStreamAttachmentAsync(
-                attachment2Name, "text/plain", getStreamWithTimeout(1, attachment2Content)));
+        final String attachment1Content = randomString(100);
+        final String attachment2Content = randomString(100);
 
-        lifecycle.stopTestCase(uuid);
-        lifecycle.writeTestCase(uuid);
+        final AllureResults writer = RunUtils.runWithinTestContext(() -> {
+            features.add(addStreamAttachmentAsync(
+                    attachment1Name, "video/mp4", getStreamWithTimeout(2, attachment1Content)));
+            features.add(addStreamAttachmentAsync(
+                    attachment2Name, "text/plain", getStreamWithTimeout(1, attachment2Content)));
 
-        allOf(features.toArray(new CompletableFuture[0])).join();
+            allOf(features.toArray(new CompletableFuture[0])).join();
+        });
 
         final List<io.qameta.allure.model.Attachment> attachments = writer.getTestResults().stream()
                 .map(TestResult::getAttachments)
@@ -351,7 +356,7 @@ class AllureLifecycleTest {
         final io.qameta.allure.model.Attachment attachment1 = attachments.stream()
                 .filter(attachment -> Objects.equals(attachment.getName(), attachment1Name))
                 .findAny()
-                .get();
+                .orElseThrow();
 
         final byte[] actual1 = attachmentFiles.get(attachment1.getSource());
 
@@ -361,7 +366,7 @@ class AllureLifecycleTest {
         final Attachment attachment2 = attachments.stream()
                 .filter(attachment -> Objects.equals(attachment.getName(), attachment2Name))
                 .findAny()
-                .get();
+                .orElseThrow();
 
         final byte[] actual2 = attachmentFiles.get(attachment2.getSource());
 

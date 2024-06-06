@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,6 +20,9 @@ import io.qameta.allure.model.TestResultContainer;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * @author charlie (Dmitry Baev).
@@ -31,5 +34,21 @@ public interface AllureResults {
     List<TestResultContainer> getTestResultContainers();
 
     Map<String, byte[]> getAttachments();
+
+    default TestResult getTestResultByName(final String name) {
+        return getTestResults().stream()
+                .filter(tr -> Objects.equals(name, tr.getName()))
+                .findFirst()
+                .orElseThrow(() -> new NoSuchElementException(
+                        "test result with name " + name + " is not found"
+                ));
+    }
+
+    default List<TestResultContainer> getTestResultContainersForTestResult(final TestResult testResult) {
+        return getTestResultContainers().stream()
+                .filter(c -> Objects.nonNull(c.getChildren()))
+                .filter(c -> c.getChildren().contains(testResult.getUuid()))
+                .collect(Collectors.toList());
+    }
 
 }

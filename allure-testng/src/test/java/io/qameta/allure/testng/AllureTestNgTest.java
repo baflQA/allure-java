@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,12 +15,8 @@
  */
 package io.qameta.allure.testng;
 
-import io.qameta.allure.Allure;
-import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Step;
-import io.qameta.allure.aspects.AttachmentsAspects;
-import io.qameta.allure.aspects.StepsAspects;
 import io.qameta.allure.model.Attachment;
 import io.qameta.allure.model.FixtureResult;
 import io.qameta.allure.model.Label;
@@ -35,7 +31,7 @@ import io.qameta.allure.model.TestResultContainer;
 import io.qameta.allure.model.WithSteps;
 import io.qameta.allure.test.AllureFeatures;
 import io.qameta.allure.test.AllureResults;
-import io.qameta.allure.test.AllureResultsWriterStub;
+import io.qameta.allure.test.RunUtils;
 import io.qameta.allure.testfilter.TestPlan;
 import io.qameta.allure.testfilter.TestPlanV1_0;
 import io.qameta.allure.testng.config.AllureTestNgConfig;
@@ -182,7 +178,7 @@ public class AllureTestNgTest {
                 .hasSize(2)
                 .as("Unexpectedly passed status or stage of tests")
                 .allMatch(testResult -> testResult.getStatus().equals(Status.PASSED) &&
-                        testResult.getStage().equals(Stage.FINISHED))
+                                        testResult.getStage().equals(Stage.FINISHED))
                 .extracting(TestResult::getName)
                 .as("Unexpectedly passed name of tests")
                 .containsOnlyElementsOf(asList(
@@ -1126,7 +1122,7 @@ public class AllureTestNgTest {
     public void shouldNotDisplayDisabledTests() {
         AllureTestNgConfig allureTestNgConfig = AllureTestNgConfig.loadConfigProperties();
         allureTestNgConfig.setHideDisabledTests(true);
-        final AllureResults results = runTestNgSuites(allureTestNgConfig,"suites/gh-369.xml");
+        final AllureResults results = runTestNgSuites(allureTestNgConfig, "suites/gh-369.xml");
         assertThat(results.getTestResults())
                 .extracting(TestResult::getName, TestResult::getStatus)
                 .containsOnly(tuple("enabled", Status.PASSED));
@@ -1273,7 +1269,8 @@ public class AllureTestNgTest {
     }
 
     private AllureResults runTestNgSuites(final Consumer<TestNG> configurer,
-                                          final String... suites) {;
+                                          final String... suites) {
+        ;
         return runTestNgSuites(configurer, AllureTestNgConfig.loadConfigProperties(), suites);
     }
 
@@ -1292,29 +1289,17 @@ public class AllureTestNgTest {
                 .as("Cannot find all suite xml files")
                 .hasSameSizeAs(suiteFiles);
 
-        final AllureResultsWriterStub results = new AllureResultsWriterStub();
-        final AllureLifecycle lifecycle = new AllureLifecycle(results);
-        final AllureTestNg adapter = new AllureTestNg(lifecycle,
-            new AllureTestNgTestFilter(),
-            config);
-        final TestNG testNg = new TestNG(false);
-        testNg.addListener((ITestNGListener) adapter);
-        testNg.setTestSuites(suiteFiles);
+        return RunUtils.runTests(lifecycle -> {
+            final AllureTestNg adapter = new AllureTestNg(lifecycle,
+                    new AllureTestNgTestFilter(),
+                    config);
+            final TestNG testNg = new TestNG(false);
+            testNg.addListener((ITestNGListener) adapter);
+            testNg.setTestSuites(suiteFiles);
 
-        configurer.accept(testNg);
-
-        final AllureLifecycle cached = Allure.getLifecycle();
-        try {
-            Allure.setLifecycle(lifecycle);
-            StepsAspects.setLifecycle(lifecycle);
-            AttachmentsAspects.setLifecycle(lifecycle);
+            configurer.accept(testNg);
             testNg.run();
-        } finally {
-            Allure.setLifecycle(cached);
-            StepsAspects.setLifecycle(cached);
-            AttachmentsAspects.setLifecycle(cached);
-        }
-        return results;
+        });
     }
 
     protected Consumer<TestNG> parallel(final XmlSuite.ParallelMode mode,
@@ -1349,13 +1334,13 @@ public class AllureTestNgTest {
     @Step("Find flaky")
     private Predicate<TestResult> flakyPredicate() {
         return testResult -> Objects.nonNull(testResult.getStatusDetails())
-                && testResult.getStatusDetails().isFlaky();
+                             && testResult.getStatusDetails().isFlaky();
     }
 
     @Step("Find muted")
     private Predicate<TestResult> mutedPredicate() {
         return testResult -> Objects.nonNull(testResult.getStatusDetails())
-                && testResult.getStatusDetails().isMuted();
+                             && testResult.getStatusDetails().isMuted();
     }
 
     @Step("Get uuids by container name")
@@ -1537,28 +1522,15 @@ public class AllureTestNgTest {
                 );
     }
 
-    public AllureResultsWriterStub runTestPlan(TestPlan plan, final Class<?>... testClasses) {
-        final AllureResultsWriterStub results = new AllureResultsWriterStub();
-        final AllureLifecycle lifecycle = new AllureLifecycle(results);
-        final AllureTestNg adapter = new AllureTestNg(lifecycle, new AllureTestNgTestFilter(plan));
-        TestNG testNG = new TestNG(false);
-        testNG.addListener((ITestNGListener) adapter);
-        testNG.setTestClasses(testClasses);
-        testNG.setOutputDirectory("build/test-output");
-
-
-        final AllureLifecycle cached = Allure.getLifecycle();
-        try {
-            Allure.setLifecycle(lifecycle);
-            StepsAspects.setLifecycle(lifecycle);
-            AttachmentsAspects.setLifecycle(lifecycle);
+    public AllureResults runTestPlan(final TestPlan plan, final Class<?>... testClasses) {
+        return RunUtils.runTests(lifecycle -> {
+            final AllureTestNg adapter = new AllureTestNg(lifecycle, new AllureTestNgTestFilter(plan));
+            final TestNG testNG = new TestNG(false);
+            testNG.addListener((ITestNGListener) adapter);
+            testNG.setTestClasses(testClasses);
+            testNG.setOutputDirectory("build/test-output");
             testNG.run();
-            return results;
-        } finally {
-            Allure.setLifecycle(cached);
-            StepsAspects.setLifecycle(cached);
-            AttachmentsAspects.setLifecycle(cached);
-        }
+        });
     }
 
     private Integer getOrderParameter(final TestResult result) {

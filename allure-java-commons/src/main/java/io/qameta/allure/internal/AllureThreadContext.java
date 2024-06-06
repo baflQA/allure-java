@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -79,7 +79,7 @@ public class AllureThreadContext {
     /**
      * Thread local context that stores information about not finished tests and steps.
      */
-    private static class Context extends InheritableThreadLocal<LinkedList<String>> {
+    private static final class Context extends InheritableThreadLocal<LinkedList<String>> {
 
         @Override
         public LinkedList<String> initialValue() {

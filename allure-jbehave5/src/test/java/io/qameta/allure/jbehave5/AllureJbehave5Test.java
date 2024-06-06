@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,11 +15,12 @@
  */
 package io.qameta.allure.jbehave5;
 
-import io.qameta.allure.Allure;
-import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.Issue;
 import io.qameta.allure.jbehave5.samples.BrokenStorySteps;
+import io.qameta.allure.jbehave5.samples.RuntimeApiSteps;
 import io.qameta.allure.jbehave5.samples.SimpleStorySteps;
+import io.qameta.allure.model.Attachment;
+import io.qameta.allure.model.Label;
 import io.qameta.allure.model.Parameter;
 import io.qameta.allure.model.Stage;
 import io.qameta.allure.model.Status;
@@ -27,7 +28,7 @@ import io.qameta.allure.model.StatusDetails;
 import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.TestResult;
 import io.qameta.allure.test.AllureResults;
-import io.qameta.allure.test.AllureResultsWriterStub;
+import io.qameta.allure.test.RunUtils;
 import org.jbehave.core.configuration.MostUsefulConfiguration;
 import org.jbehave.core.embedder.Embedder;
 import org.jbehave.core.embedder.EmbedderControls;
@@ -172,7 +173,7 @@ class AllureJbehave5Test {
         final AllureResults results = runStories("stories/description.story");
 
         final String expected = "This is description for current story.\n"
-                + "It should appear on each scenario in report";
+                                + "It should appear on each scenario in report";
 
         assertThat(results.getTestResults())
                 .extracting(TestResult::getDescription)
@@ -261,43 +262,77 @@ class AllureJbehave5Test {
 
     }
 
-    private AllureResults runStories(final String... storyResources) {
-        final AllureResultsWriterStub writer = new AllureResultsWriterStub();
-        final AllureLifecycle lifecycle = new AllureLifecycle(writer);
+    @Test
+    void shouldSupportRuntimeApiInSteps() {
+        final AllureResults results = runStories("stories/runtimeapi.story");
 
-        final Embedder embedder = new Embedder();
-        embedder.useEmbedderMonitor(new NullEmbedderMonitor());
-        embedder.useEmbedderControls(new EmbedderControls()
-                .doGenerateViewAfterStories(false)
-                .doFailOnStoryTimeout(false)
-                .doBatch(false)
-                .doIgnoreFailureInStories(true)
-                .doIgnoreFailureInView(true)
-                .doVerboseFailures(false)
-                .doVerboseFiltering(false)
-        );
-        final AllureJbehave5 allureJbehave5 = new AllureJbehave5(lifecycle);
-        embedder.useConfiguration(new MostUsefulConfiguration()
-                .useStoryLoader(new LoadFromClasspath(this.getClass()))
-                .useStoryReporterBuilder(new ReportlessStoryReporterBuilder(temp.toFile())
-                        .withReporters(allureJbehave5)
-                )
-                .useDefaultStoryReporter(new NullStoryReporter())
-        );
-        final InjectableStepsFactory stepsFactory = new InstanceStepsFactory(
-                embedder.configuration(),
-                new SimpleStorySteps(),
-                new BrokenStorySteps()
-        );
-        embedder.useStepsFactory(stepsFactory);
-        final AllureLifecycle cached = Allure.getLifecycle();
-        try {
-            Allure.setLifecycle(lifecycle);
+        assertThat(results.getTestResults())
+                .extracting(TestResult::getName, TestResult::getStatus)
+                .containsExactly(tuple("Runtime API", Status.PASSED));
+
+        assertThat(results.getTestResults())
+                .filteredOn("name", "Runtime API")
+                .flatExtracting(TestResult::getLabels)
+                .extracting(Label::getName, Label::getValue)
+                .contains(
+                        tuple("jbehave-test-label", "some-value")
+                );
+
+        assertThat(results.getTestResults())
+                .filteredOn("name", "Runtime API")
+                .flatExtracting(TestResult::getSteps)
+                .filteredOn("name", "Given runtime api")
+                .flatExtracting(StepResult::getSteps)
+                .extracting(StepResult::getName)
+                .containsExactlyInAnyOrder("sub step 1", "sub step 2");
+
+        assertThat(results.getTestResults())
+                .filteredOn("name", "Runtime API")
+                .flatExtracting(TestResult::getParameters)
+                .extracting(Parameter::getName, Parameter::getValue)
+                .containsExactlyInAnyOrder(
+                        tuple("test param", "param value")
+                );
+
+        assertThat(results.getTestResults())
+                .filteredOn("name", "Runtime API")
+                .flatExtracting(TestResult::getSteps)
+                .filteredOn("name", "Given runtime api")
+                .flatExtracting(StepResult::getAttachments)
+                .extracting(Attachment::getName)
+                .containsExactlyInAnyOrder("some attachment");
+    }
+
+    private AllureResults runStories(final String... storyResources) {
+        return RunUtils.runTests(lifecycle -> {
+            final Embedder embedder = new Embedder();
+            embedder.useEmbedderMonitor(new NullEmbedderMonitor());
+            embedder.useEmbedderControls(new EmbedderControls()
+                    .doGenerateViewAfterStories(false)
+                    .doFailOnStoryTimeout(false)
+                    .doBatch(false)
+                    .doIgnoreFailureInStories(true)
+                    .doIgnoreFailureInView(true)
+                    .doVerboseFailures(false)
+                    .doVerboseFiltering(false)
+            );
+            final AllureJbehave5 allureJbehave5 = new AllureJbehave5(lifecycle);
+            embedder.useConfiguration(new MostUsefulConfiguration()
+                    .useStoryLoader(new LoadFromClasspath(this.getClass()))
+                    .useStoryReporterBuilder(new ReportlessStoryReporterBuilder(temp.toFile())
+                            .withReporters(allureJbehave5)
+                    )
+                    .useDefaultStoryReporter(new NullStoryReporter())
+            );
+            final InjectableStepsFactory stepsFactory = new InstanceStepsFactory(
+                    embedder.configuration(),
+                    new SimpleStorySteps(),
+                    new BrokenStorySteps(),
+                    new RuntimeApiSteps()
+            );
+            embedder.useStepsFactory(stepsFactory);
             embedder.runStoriesAsPaths(Arrays.asList(storyResources));
-        } finally {
-            Allure.setLifecycle(cached);
-        }
-        return writer;
+        });
     }
 
     static class ReportlessStoryReporterBuilder extends StoryReporterBuilder {

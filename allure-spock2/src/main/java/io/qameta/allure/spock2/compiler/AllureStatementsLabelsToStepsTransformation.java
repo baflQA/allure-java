@@ -1,5 +1,5 @@
 /*
- *  Copyright 2022 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ public class AllureStatementsLabelsToStepsTransformation implements ASTTransform
     /**
      * Use of nested class defers linking until after groovy version check.
      */
-    private static class Impl {
+    private static final class Impl {
         private static final AstNodeCache NODE_CACHE = new AstNodeCache();
 
         private void visit(final SourceUnit sourceUnit) {
@@ -100,7 +100,7 @@ public class AllureStatementsLabelsToStepsTransformation implements ASTTransform
     /**
      * Adds Allure steps for statements with labels.
      */
-    private static class MethodVisitor implements GroovyClassVisitor {
+    private static final class MethodVisitor implements GroovyClassVisitor {
 
         private static final ClassNode ALLURE = ClassHelper.makeWithoutCaching(Allure.class);
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
 import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.TestResult;
+import io.qameta.allure.util.ResultsUtils;
 import org.jbehave.core.failures.UUIDExceptionWrapper;
 import org.jbehave.core.model.ExamplesTable;
 import org.jbehave.core.model.Scenario;
@@ -227,13 +228,15 @@ public class AllureJbehave5 extends NullStoryReporter {
                 .map(entry -> createParameter(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList());
 
-        final List<Label> labels = Arrays.asList(
+        final List<Label> labels = new ArrayList<>(Arrays.asList(
                 createStoryLabel(story.getName()),
                 createHostLabel(),
                 createThreadLabel(),
                 createFrameworkLabel("jbehave"),
                 createLanguageLabel("java")
-        );
+        ));
+
+        labels.addAll(ResultsUtils.getProvidedLabels());
 
         final String historyId = getHistoryId(fullName, parameters);
 

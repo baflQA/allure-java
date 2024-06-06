@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -32,8 +32,8 @@ public class AllureJunit4ListenerAspect {
     @After("execution(org.junit.runner.notification.RunNotifier.new())")
     public void addListener(final JoinPoint point) {
         final RunNotifier notifier = (RunNotifier) point.getThis();
-        notifier.removeListener(allure);
-        notifier.addListener(allure);
+        if (RunNotifier.class.equals(notifier.getClass())) {
+            notifier.addListener(allure);
+        }
     }
-
 }

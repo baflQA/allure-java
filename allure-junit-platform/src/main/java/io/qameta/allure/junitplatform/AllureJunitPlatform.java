@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -553,7 +553,16 @@ public class AllureJunitPlatform implements TestExecutionListener {
 
         result.getLabels().add(getJUnitPlatformUniqueId(testIdentifier));
 
-        testClass.map(AnnotationUtils::getLabels).ifPresent(result.getLabels()::addAll);
+        // add annotations from outer classes (support for @Nested tests in JUnit 5)
+        testClass.ifPresent(clazz -> {
+            Class<?> clazz1 = clazz;
+            do {
+                final Set<Label> labels = AnnotationUtils.getLabels(clazz1);
+                result.getLabels().addAll(labels);
+                clazz1 = clazz1.getDeclaringClass();
+            } while (Objects.nonNull(clazz1));
+        });
+
         testMethod.map(AnnotationUtils::getLabels).ifPresent(result.getLabels()::addAll);
 
         testClass.map(AnnotationUtils::getLinks).ifPresent(result.getLinks()::addAll);
@@ -730,7 +739,7 @@ public class AllureJunitPlatform implements TestExecutionListener {
         return tests.get().getOrCreate(testIdentifier);
     }
 
-    private static class Uuids {
+    private static final class Uuids {
 
         private final Map<TestIdentifier, String> storage = new ConcurrentHashMap<>();
         private final ReadWriteLock lock = new ReentrantReadWriteLock();

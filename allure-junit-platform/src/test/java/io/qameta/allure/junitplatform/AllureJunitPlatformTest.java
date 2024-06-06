@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,11 +16,7 @@
 package io.qameta.allure.junitplatform;
 
 import io.github.glytching.junit.extension.system.SystemProperty;
-import io.qameta.allure.Allure;
-import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.Issue;
-import io.qameta.allure.aspects.AttachmentsAspects;
-import io.qameta.allure.aspects.StepsAspects;
 import io.qameta.allure.junitplatform.features.AllureIdAnnotationSupport;
 import io.qameta.allure.junitplatform.features.BrokenInAfterAllTests;
 import io.qameta.allure.junitplatform.features.BrokenInBeforeAllTests;
@@ -32,6 +28,7 @@ import io.qameta.allure.junitplatform.features.DynamicTests;
 import io.qameta.allure.junitplatform.features.FailedTests;
 import io.qameta.allure.junitplatform.features.JupiterUniqueIdTest;
 import io.qameta.allure.junitplatform.features.MarkerAnnotationSupport;
+import io.qameta.allure.junitplatform.features.NestedTests;
 import io.qameta.allure.junitplatform.features.OneTest;
 import io.qameta.allure.junitplatform.features.OwnerTest;
 import io.qameta.allure.junitplatform.features.ParallelTests;
@@ -67,7 +64,7 @@ import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.TestResult;
 import io.qameta.allure.test.AllureFeatures;
 import io.qameta.allure.test.AllureResults;
-import io.qameta.allure.test.AllureResultsWriterStub;
+import io.qameta.allure.test.RunUtils;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceLock;
@@ -841,35 +838,23 @@ public class AllureJunitPlatformTest {
     @Test
     @AllureFeatures.Retries
     void shouldSetDifferentUuidsInDifferentRuns() {
-        final AllureResultsWriterStub results = new AllureResultsWriterStub();
-        final AllureLifecycle lifecycle = new AllureLifecycle(results);
+        final AllureResults results = RunUtils.runTests(lifecycle -> {
+            final LauncherDiscoveryRequest request = LauncherDiscoveryRequestBuilder.request()
+                    .filters(new AllurePostDiscoveryFilter(null))
+                    .selectors(DiscoverySelectors.selectClass(OneTest.class))
+                    .build();
 
-        final LauncherDiscoveryRequest request = LauncherDiscoveryRequestBuilder.request()
-                .filters(new AllurePostDiscoveryFilter(null))
-                .selectors(DiscoverySelectors.selectClass(OneTest.class))
-                .build();
-
-        final LauncherConfig config = LauncherConfig.builder()
-                .enableTestExecutionListenerAutoRegistration(false)
-                .addTestExecutionListeners(new AllureJunitPlatform(lifecycle))
-                .enablePostDiscoveryFilterAutoRegistration(false)
-                .build();
-        final Launcher launcher = LauncherFactory.create(config);
-
-        final AllureLifecycle defaultLifecycle = Allure.getLifecycle();
-        try {
-            Allure.setLifecycle(lifecycle);
-            StepsAspects.setLifecycle(lifecycle);
-            AttachmentsAspects.setLifecycle(lifecycle);
+            final LauncherConfig config = LauncherConfig.builder()
+                    .enableTestExecutionListenerAutoRegistration(false)
+                    .addTestExecutionListeners(new AllureJunitPlatform(lifecycle))
+                    .enablePostDiscoveryFilterAutoRegistration(false)
+                    .build();
+            final Launcher launcher = LauncherFactory.create(config);
 
             // execute request twice
             launcher.execute(request);
             launcher.execute(request);
-        } finally {
-            Allure.setLifecycle(defaultLifecycle);
-            StepsAspects.setLifecycle(defaultLifecycle);
-            AttachmentsAspects.setLifecycle(defaultLifecycle);
-        }
+        });
 
 
         final List<TestResult> testResults = results.getTestResults();
@@ -887,5 +872,56 @@ public class AllureJunitPlatformTest {
                 .extracting(TestResult::getHistoryId)
                 .isEqualTo(tr2.getHistoryId());
 
+    }
+
+    @Test
+    void shouldSupportNestedClasses() {
+        final AllureResults allureResults = runClasses(NestedTests.class);
+
+        assertThat(allureResults.getTestResults())
+                .extracting(TestResult::getName)
+                .containsExactlyInAnyOrder(
+                        "parentTest()",
+                        "feature1Test()",
+                        "feature2Test()",
+                        "story1Test()"
+                );
+
+        assertThat(allureResults.getTestResults())
+                .filteredOn("name", "parentTest()")
+                .flatExtracting(TestResult::getLabels)
+                .extracting(Label::getName, Label::getValue)
+                .contains(
+                        tuple("epic", "Parent epic"),
+                        tuple("feature", "Parent feature")
+                );
+
+        assertThat(allureResults.getTestResults())
+                .filteredOn("name", "feature1Test()")
+                .flatExtracting(TestResult::getLabels)
+                .extracting(Label::getName, Label::getValue)
+                .contains(
+                        tuple("epic", "Parent epic"),
+                        tuple("feature", "Feature 1")
+                );
+
+        assertThat(allureResults.getTestResults())
+                .filteredOn("name", "feature2Test()")
+                .flatExtracting(TestResult::getLabels)
+                .extracting(Label::getName, Label::getValue)
+                .contains(
+                        tuple("epic", "Parent epic"),
+                        tuple("feature", "Feature 2")
+                );
+
+        assertThat(allureResults.getTestResults())
+                .filteredOn("name", "story1Test()")
+                .flatExtracting(TestResult::getLabels)
+                .extracting(Label::getName, Label::getValue)
+                .contains(
+                        tuple("epic", "Parent epic"),
+                        tuple("feature", "Feature 2"),
+                        tuple("story", "Story 1")
+                );
     }
 }

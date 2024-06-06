@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -185,8 +185,7 @@ public final class Allure {
             getLifecycle().updateStep(s -> s
                     .setStatus(getStatus(throwable).orElse(Status.BROKEN))
                     .setStatusDetails(getStatusDetails(throwable).orElse(null)));
-            ExceptionUtils.sneakyThrow(throwable);
-            return null;
+            throw ExceptionUtils.sneakyThrow(throwable);
         } finally {
             getLifecycle().stopStep(uuid);
         }

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016-2022 Qameta Software OÜ
+ *  Copyright 2016-2024 Qameta Software Inc
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import static java.lang.Boolean.FALSE;
 /**
  * @author charlie (Dmitry Baev).
  */
+@SuppressWarnings("PMD.NonSerializableClass")
 public class AllureJooq implements ExecuteListener {
 
     private static final String STEP_UUID
