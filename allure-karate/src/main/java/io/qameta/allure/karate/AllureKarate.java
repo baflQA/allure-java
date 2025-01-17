@@ -26,7 +26,6 @@ import com.intuit.karate.core.Step;
 import com.intuit.karate.core.StepResult;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
-import io.qameta.allure.model.Attachment;
 import io.qameta.allure.model.Label;
 import io.qameta.allure.model.Link;
 import io.qameta.allure.model.Parameter;
@@ -50,8 +49,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import static io.qameta.allure.util.ResultsUtils.createLabel;
@@ -70,11 +67,6 @@ public class AllureKarate implements RuntimeHook {
     private static final String ALLURE_UUID = "ALLURE_UUID";
 
     private final AllureLifecycle lifecycle;
-
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
-
-    private final Map<String, String> stepsAndTcUuids = new HashMap<>();
-    private final Map<String, Step> stepAndUuids = new HashMap<>();
 
     private final List<String> tcUuids = new ArrayList<>();
 
@@ -181,6 +173,10 @@ public class AllureKarate implements RuntimeHook {
             return true;
         }
 
+        if (step.getText().startsWith("call") || step.getText().startsWith("callonce")) {
+            return true;
+        }
+
         final String uuid = parentUuid + "-" + step.getIndex();
         final io.qameta.allure.model.StepResult stepResult = new io.qameta.allure.model.StepResult()
                 .setName(step.getText());
@@ -199,6 +195,10 @@ public class AllureKarate implements RuntimeHook {
         }
 
         final Step step = result.getStep();
+        if (step.getText().startsWith("call") || step.getText().startsWith("callonce")) {
+            return;
+        }
+
         final String uuid = parentUuid + "-" + step.getIndex();
 
         final Result stepResult = result.getResult();
@@ -221,14 +221,6 @@ public class AllureKarate implements RuntimeHook {
         });
         lifecycle.stopStep(uuid);
 
-        if (stepResult.isFailed()
-            && sr.engine.getConfig().getDriverOptions() != null
-            && (Boolean) sr.engine.getConfig().getDriverOptions().get("screenshotOnFailure")
-        ) {
-            addToStepsAndTcUuids(uuid, lifecycle.getCurrentTestCase().get());
-            addToStepAndUuids(uuid, step);
-        }
-
         if (Objects.nonNull(result.getEmbeds())) {
             result.getEmbeds().forEach(embed -> {
                 try (InputStream is = new BufferedInputStream(Files.newInputStream(embed.getFile().toPath()))) {
@@ -248,30 +240,6 @@ public class AllureKarate implements RuntimeHook {
 
     @Override
     public void afterFeature(final FeatureRuntime fr) {
-
-        if (!stepsAndTcUuids.isEmpty()) {
-            fr.result.getScenarioResults()
-                    .forEach(sc -> {
-                        if (Objects.nonNull(sc.getFailedStep())) {
-                            getKeySetFromStepAndUuids().forEach(uuid -> {
-                                if (getValueFromStepAndUuids(uuid) == sc.getFailedStep().getStep()) {
-                                    final List<Attachment> attachments = new ArrayList<>();
-                                    sc.getFailedStep().getEmbeds().forEach(e -> attachments.add(
-                                                    new Attachment()
-                                                            .setSource(e.getFile().getPath())
-                                                            .setType(e.getResourceType().contentType)
-                                                            .setName(e.getFile().getName())
-                                            )
-                                    );
-                                    lifecycle.updateTestCase(getValueFromStepsAndTcUuids(uuid), result ->
-                                            result.setAttachments(attachments)
-                                    );
-                                }
-                            });
-                        }
-                    });
-        }
-
         tcUuids.forEach(lifecycle::writeTestCase);
     }
 
@@ -320,50 +288,5 @@ public class AllureKarate implements RuntimeHook {
             }
         }
         return allureLinks;
-    }
-
-    private void addToStepsAndTcUuids(final String stepUuid, final String tcUuid) {
-        lock.writeLock().lock();
-        try {
-            stepsAndTcUuids.put(stepUuid, tcUuid);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    private void addToStepAndUuids(final String stepUuid, final Step step) {
-        lock.writeLock().lock();
-        try {
-            stepAndUuids.put(stepUuid, step);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    private String getValueFromStepsAndTcUuids(final String stepUuid) {
-        lock.readLock().lock();
-        try {
-            return stepsAndTcUuids.get(stepUuid);
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    private Step getValueFromStepAndUuids(final String stepUuid) {
-        lock.readLock().lock();
-        try {
-            return stepAndUuids.get(stepUuid);
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    private Set<String> getKeySetFromStepAndUuids() {
-        lock.readLock().lock();
-        try {
-            return stepAndUuids.keySet();
-        } finally {
-            lock.readLock().unlock();
-        }
     }
 }

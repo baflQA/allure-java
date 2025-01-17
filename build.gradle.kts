@@ -27,7 +27,7 @@ plugins {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
@@ -56,13 +56,7 @@ configure(subprojects) {
 
     publishing {
         publications {
-            create<MavenPublication>("maven") {
-                suppressAllPomMetadataWarnings()
-                versionMapping {
-                    allVariants {
-                        fromResolutionResult()
-                    }
-                }
+            withType<MavenPublication>().configureEach {
                 pom {
                     name.set(project.name)
                     description.set("Module ${project.name} of Allure Framework.")
@@ -106,6 +100,14 @@ configure(subprojects) {
                     }
                 }
             }
+            create<MavenPublication>("maven") {
+                suppressAllPomMetadataWarnings()
+                versionMapping {
+                    allVariants {
+                        fromResolutionResult()
+                    }
+                }
+            }
         }
     }
 
@@ -140,37 +142,35 @@ configure(libs) {
     apply(plugin = "java-library")
 
     val orgSlf4jVersion = "2.0.13"
-    val assertJVersion = "1.9.9.1"
+    val assertJVersion = "1.9.22.1"
 
     dependencyManagement {
         imports {
-            mavenBom("com.fasterxml.jackson:jackson-bom:2.14.1")
-            mavenBom("org.junit:junit-bom:5.9.2")
+            mavenBom("com.fasterxml.jackson:jackson-bom:2.17.2")
+            mavenBom("org.junit:junit-bom:5.10.3")
         }
         dependencies {
-            dependency("com.github.spotbugs:spotbugs:4.8.3")
+            dependency("com.github.spotbugs:spotbugs:4.8.6")
             dependency("com.github.tomakehurst:wiremock:3.0.1")
             dependency("com.google.inject:guice:7.0.0")
-            dependency("com.google.testing.compile:compile-testing:0.19")
-            dependency("com.puppycrawl.tools:checkstyle:10.13.0")
-            dependency("com.squareup.retrofit2:retrofit:2.9.0")
-            dependency("commons-io:commons-io:2.11.0")
+            dependency("com.google.testing.compile:compile-testing:0.21.0")
+            dependency("com.puppycrawl.tools:checkstyle:10.17.0")
+            dependency("com.squareup.retrofit2:retrofit:2.11.0")
+            dependency("commons-io:commons-io:2.16.1")
             dependency("io.github.benas:random-beans:3.9.0")
             dependency("io.github.glytching:junit-extensions:2.6.0")
             dependency("javax.annotation:javax.annotation-api:1.3.2")
-            dependency("net.sourceforge.pmd:pmd-java:6.55.0")
-            dependency("org.apache.commons:commons-lang3:3.12.0")
-            dependency("org.apache.httpcomponents:httpclient:4.5.14")
-            dependency("org.apache.httpcomponents.client5:httpclient5:5.2.1")
+            dependency("net.sourceforge.pmd:pmd-java:7.4.0")
+            dependency("org.apache.commons:commons-lang3:3.15.0")
             dependency("org.aspectj:aspectjrt:${assertJVersion}")
             dependency("org.aspectj:aspectjweaver:${assertJVersion}")
-            dependency("org.assertj:assertj-core:3.23.1")
-            dependency("org.freemarker:freemarker:2.3.31")
+            dependency("org.assertj:assertj-core:3.26.3")
+            dependency("org.freemarker:freemarker:2.3.33")
             dependency("org.grpcmock:grpcmock-junit5:0.8.0")
-            dependency("org.hamcrest:hamcrest:2.2")
-            dependency("org.jboss.resteasy:resteasy-client:6.2.1.Final")
+            dependency("org.hamcrest:hamcrest:3.0")
+            dependency("org.jboss.resteasy:resteasy-client:6.2.9.Final")
             dependency("org.mock-server:mockserver-netty:5.15.0")
-            dependency("org.mockito:mockito-core:5.10.0")
+            dependency("org.mockito:mockito-core:5.12.0")
             dependency("org.slf4j:slf4j-api:${orgSlf4jVersion}")
             dependency("org.slf4j:slf4j-nop:${orgSlf4jVersion}")
             dependency("org.slf4j:slf4j-simple:${orgSlf4jVersion}")
@@ -193,11 +193,8 @@ configure(libs) {
 
     tasks {
         compileJava {
-            if (JavaVersion.current().isJava8) {
-                java.targetCompatibility = JavaVersion.VERSION_1_8
-            } else {
-                options.release.set(8)
-            }
+            options.compilerArgs.add("-Xlint:-options")
+            options.release.set(8)
         }
 
         compileTestJava {
@@ -374,6 +371,10 @@ configure(libs) {
         pom {
             from(components["java"])
         }
+    }
+
+    val allDepsInsight by tasks.creating(DependencyInsightReportTask::class) {
+        showingAllVariants.set(true)
     }
 }
 

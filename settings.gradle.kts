@@ -16,7 +16,6 @@ include("allure-httpclient")
 include("allure-httpclient5")
 include("allure-java-commons")
 include("allure-java-commons-test")
-include("allure-java-migration")
 include("allure-jax-rs")
 include("allure-jbehave")
 include("allure-jbehave5")
@@ -47,32 +46,33 @@ pluginManagement {
         gradlePluginPortal()
     }
     plugins {
-        id("com.diffplug.spotless") version "6.11.0"
-        id("com.github.johnrengelman.shadow") version "8.1.1"
-        id("com.gradle.enterprise") version "3.12.5"
-        id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
+        id("com.diffplug.spotless") version "6.25.0"
+        id("io.github.goooler.shadow") version "8.1.8"
+        id("com.gradle.enterprise") version "3.17.5"
+        id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
         id("io.qameta.allure-adapter") version "2.11.2"
         id("io.qameta.allure-aggregate-report") version "2.11.2"
         id("io.qameta.allure-download") version "2.11.2"
         id("io.qameta.allure-report") version "2.11.2"
-        id("io.spring.dependency-management") version "1.1.5"
+        id("io.spring.dependency-management") version "1.1.6"
         id("com.google.protobuf") version "0.9.4"
-        id("com.github.spotbugs") version "6.0.6"
-        kotlin("jvm") version "1.7.10"
+        id("com.github.spotbugs") version "6.0.19"
+        kotlin("jvm") version "2.0.0"
     }
 }
 
 plugins {
-    id("com.gradle.enterprise")
+    id("com.gradle.develocity") version "3.17.5" apply false
 }
 
 val isCiServer = System.getenv().containsKey("CI")
 
 if (isCiServer) {
-    gradleEnterprise {
+    apply(plugin = "com.gradle.develocity")
+    develocity {
         buildScan {
-            termsOfServiceUrl = "https://gradle.com/terms-of-service"
-            termsOfServiceAgree = "yes"
+            termsOfUseUrl = "https://gradle.com/terms-of-service"
+            termsOfUseAgree = "yes"
             tag("CI")
         }
     }

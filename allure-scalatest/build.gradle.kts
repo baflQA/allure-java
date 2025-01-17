@@ -1,92 +1,97 @@
-import org.gradle.jvm.tasks.Jar
-
 description = "Allure ScalaTest Integration"
 
-apply(plugin = "scala")
+plugins {
+    scala
+    id("com.github.prokod.gradle-crossbuild") version "0.16.0"
+}
 
-val availableScalaVersions = listOf("2.11", "2.12", "2.13")
-val defaultScala211Version = "2.11.12"
-val defaultScala212Version = "2.12.8"
-val defaultScala213Version = "2.13.1"
+val scala212 = "2.12"
+val scala213 = "2.13"
 
-var selectedScalaVersion = defaultScala213Version
+project.base.archivesName.set("allure-scalatest")
 
-if (hasProperty("scalaVersion")) {
-    val scalaVersion: String by project
-    selectedScalaVersion = when (scalaVersion) {
-        "2.11" -> defaultScala211Version
-        "2.12" -> defaultScala212Version
-        "2.13" -> defaultScala213Version
-        else -> scalaVersion
+crossBuild {
+    scalaVersionsCatalog = mapOf(
+        scala212 to "2.12.19",
+        scala213 to "2.13.14"
+    )
+    builds {
+        register("scala") {
+            scalaVersions = setOf(scala212, scala213)
+        }
     }
 }
 
-val baseScalaVersion = selectedScalaVersion.substring(0, selectedScalaVersion.lastIndexOf("."))
-project.base.archivesName.set("allure-scalatest_$baseScalaVersion")
+tasks.publishMavenPublicationToMavenLocal {
+    enabled = false
+}
+tasks.publishMavenPublicationToSonatypeRepository {
+    enabled = false
+}
+tasks.signMavenPublication {
+    enabled = false
+}
+tasks.sourcesJar {
+    enabled = false
+}
 
-for (sv in availableScalaVersions) {
-    val taskSuffix = sv.replace('.', '_')
+publishing {
+    publications {
+        create<MavenPublication>("crossBuildScala_212") {
+            from(components["crossBuildScala_212"])
 
-    tasks.create("jarScala_$taskSuffix", GradleBuild::class) {
-        startParameter = project.gradle.startParameter.newInstance()
-        startParameter.projectProperties["scalaVersion"] = sv
-        tasks = listOf("jar")
-    }
+            val crossBuildScala_212SourcesJar by tasks.creating(Jar::class) {
+                from(sourceSets["crossBuildScala_212"].allSource)
+                archiveBaseName.set("allure-scalatest_$scala212")
+                archiveClassifier.set("sources")
+            }
+            artifact(crossBuildScala_212SourcesJar)
 
-    tasks.create("testScala_$taskSuffix", GradleBuild::class) {
-        startParameter = project.gradle.startParameter.newInstance()
-        startParameter.projectProperties["scalaVersion"] = sv
-        tasks = listOf("test")
-    }
+            val crossBuildScala_212ScaladocJar by tasks.creating(Jar::class) {
+                from(tasks.scaladoc)
+                archiveBaseName.set("allure-scalatest_$scala212")
+                archiveClassifier.set("javadoc")
+            }
+            artifact(crossBuildScala_212ScaladocJar)
+        }
+        create<MavenPublication>("crossBuildScala_213") {
+            from(components["crossBuildScala_213"])
 
-    tasks.create("sourceJarScala_$taskSuffix", GradleBuild::class) {
-        startParameter = project.gradle.startParameter.newInstance()
-        startParameter.projectProperties["scalaVersion"] = sv
-        tasks = listOf("sourceJar")
-    }
+            val crossBuildScala_213SourcesJar by tasks.creating(Jar::class) {
+                from(sourceSets["crossBuildScala_213"].allSource)
+                archiveBaseName.set("allure-scalatest_$scala213")
+                archiveClassifier.set("sources")
+            }
+            artifact(crossBuildScala_213SourcesJar)
 
-    tasks.create("scaladocJarScala_$taskSuffix", GradleBuild::class) {
-        startParameter = project.gradle.startParameter.newInstance()
-        startParameter.projectProperties["scalaVersion"] = sv
-        tasks = listOf("scaladocJar")
-    }
-
-    tasks.create("installScala_$taskSuffix", GradleBuild::class) {
-        startParameter = project.gradle.startParameter.newInstance()
-        startParameter.projectProperties["scalaVersion"] = sv
-        tasks = listOf("install")
+            val crossBuildScala_213ScaladocJar by tasks.creating(Jar::class) {
+                from(tasks.scaladoc)
+                archiveBaseName.set("allure-scalatest_$scala213")
+                archiveClassifier.set("javadoc")
+            }
+            artifact(crossBuildScala_213ScaladocJar)
+        }
     }
 }
 
-val jarAll by tasks.creating {
-    dependsOn(availableScalaVersions.map { "jarScala_${it.replace('.', '_')}" })
-}
-
-val testAll by tasks.creating {
-    dependsOn(availableScalaVersions.map { "testScala_${it.replace('.', '_')}" })
-}
-
-val sourceJarAll by tasks.creating {
-    dependsOn(availableScalaVersions.map { "sourceJarScala_${it.replace('.', '_')}" })
-}
-
-val scaladocJarAll by tasks.creating {
-    dependsOn(availableScalaVersions.map { "scaladocJarScala_${it.replace('.', '_')}" })
-}
-
-val installAll by tasks.creating {
-    dependsOn(availableScalaVersions.map { "installScala_${it.replace('.', '_')}" })
+signing {
+    sign(
+        publishing.publications["crossBuildScala_212"],
+        publishing.publications["crossBuildScala_213"]
+    )
 }
 
 dependencies {
     api(project(":allure-java-commons"))
-    implementation("org.scalatest:scalatest_$baseScalaVersion:3.1.1")
-    implementation("org.scala-lang.modules:scala-collection-compat_$baseScalaVersion:2.1.4")
+    compileOnly("org.scalatest:scalatest_$scala213:3.2.19")
+    compileOnly("org.scala-lang.modules:scala-collection-compat_$scala213:2.12.0")
     testAnnotationProcessor(project(":allure-descriptions-javadoc"))
     testImplementation("io.github.glytching:junit-extensions")
     testImplementation("org.assertj:assertj-core")
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.junit.jupiter:junit-jupiter-params")
+    testImplementation("org.scalatest:scalatest_$scala213:3.2.19")
+    testImplementation("org.scala-lang.modules:scala-collection-compat_$scala213:2.12.0")
     testImplementation("org.slf4j:slf4j-simple")
     testImplementation(project(":allure-assertj"))
     testImplementation(project(":allure-java-commons-test"))
@@ -94,18 +99,13 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
 
-val scaladocJar by tasks.creating(Jar::class) {
-    from(tasks.getByName("scaladoc"))
-    archiveClassifier.set("scaladoc")
-}
-
-artifacts.add("archives", scaladocJar)
-
 tasks.jar {
     manifest {
-        attributes(mapOf(
+        attributes(
+            mapOf(
                 "Automatic-Module-Name" to "io.qameta.allure.scalatest"
-        ))
+            )
+        )
     }
 }
 

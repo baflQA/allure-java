@@ -5,12 +5,12 @@ plugins {
 }
 
 val spockFrameworkVersion = "2.3-groovy-3.0"
-val groovyVersion = "3.0.13"
+val groovyVersion = "3.0.22"
 
 dependencies {
     api(project(":allure-java-commons"))
-    implementation("org.spockframework:spock-core:$spockFrameworkVersion")
     compileOnly("org.aspectj:aspectjrt")
+    compileOnly("org.spockframework:spock-core:$spockFrameworkVersion")
     implementation(project(":allure-test-filter"))
     testAnnotationProcessor("org.slf4j:slf4j-simple")
     testAnnotationProcessor(project(":allure-descriptions-javadoc"))
@@ -22,6 +22,7 @@ dependencies {
     testImplementation("org.junit.platform:junit-platform-launcher")
     testImplementation("org.mockito:mockito-core")
     testImplementation("org.slf4j:slf4j-simple")
+    testImplementation("org.spockframework:spock-core:$spockFrameworkVersion")
     testImplementation(project(":allure-assertj"))
     testImplementation(project(":allure-java-commons-test"))
     testImplementation(project(":allure-junit-platform"))
